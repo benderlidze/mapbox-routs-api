@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>Add a line to a map using a GeoJSON source</title>
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js"></script>
+    <script src="https://d3js.org/d3.v6.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
+        #map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 100%;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="map"></div>
+    <script>
+
+        mapboxgl.accessToken = 'pk.eyJ1IjoicmF5bG9wZXphbGVtYW4iLCJhIjoiY2trcHc3ODY4MGNycTJwcGE0MW5pcDNnMSJ9.gHtN2ew2g26gY7KSMzFBpw';
+        const map = new mapboxgl.Map({
+            container: 'map',
+            // Choose from Mapbox's core styles, or make your own style with Mapbox Studio
+            style: 'mapbox://styles/mapbox/light-v11',
+            center: [-86.458194, 30.750692],
+            zoom: 3,
+            projection: 'mercator'
+        });
+
+        map.on('load', () => {
+            map.addSource('route', {
+                'type': 'geojson',
+                'data': { type: 'FeatureCollection', features: Array(0) }
+            });
+            map.addLayer({
+                'id': 'route',
+                'type': 'line',
+                'source': 'route',
+                'layout': {
+                    'line-join': 'round',
+                    'line-cap': 'round'
+                },
+                'paint': {
+                    'line-color': ['get', 'color'],
+                    'line-width': 8
+                }
+            });
+
+
+
+            d3.csv("Linear Heatmap Data - allinone mini.csv")
+                .then(csv => {
+                    console.log('data', csv);
+                    //https://api.mapbox.com/directions/v5/mapbox/cycling/-84.518641,39.134270;-84.512023,39.102779?geometries=geojson&access_token=pk.eyJ1IjoicmF5bG9wZXphbGVtYW4iLCJhIjoiY2trcHc3ODY4MGNycTJwcGE0MW5pcDNnMSJ9.gHtN2ew2g26gY7KSMzFBpw
+
+                    const data = csv.map(d => {
+                        const { plat, plon, dlat, dlon } = d;
+                        const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${+plon},${plat};${+dlon},${dlat}?geometries=geojson&access_token=pk.eyJ1IjoicmF5bG9wZXphbGVtYW4iLCJhIjoiY2trcHc3ODY4MGNycTJwcGE0MW5pcDNnMSJ9.gHtN2ew2g26gY7KSMzFBpw`
+                        return fetch(url).then(d => d.json())
+                    })
+
+                    Promise.all(data).then(data => {
+                        console.log('data', data);
+                        const features = data.map(d => {
+                            return {
+                                "type": "Feature",
+                                "properties": {
+                                    //generate random color 
+                                    color: '#' + Math.floor(Math.random() * 16777215).toString(16)
+                                },
+                                "geometry": {
+                                    ...d.routes[0].geometry
+                                }
+                            }
+                        })
+                        console.log('features', features);
+                        map.getSource('route').setData({ type: 'FeatureCollection', features })
+                    })
+                })
+        });
+    </script>
+
+</body>
+
+</html>
